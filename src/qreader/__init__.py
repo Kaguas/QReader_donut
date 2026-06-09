@@ -20,6 +20,7 @@ import cv2
 import numpy as np
 from pyzbar.pyzbar import Decoded, ZBarSymbol
 from pyzbar.pyzbar import decode as decodeQR
+from donutcode import Decoder
 from qrdet import (
     BBOX_XYXY,
     CONFIDENCE,
@@ -173,11 +174,11 @@ class QReader:
         :return: str|None. The decoded content of the QR code or None if it can not be read.
         """
         # Crop the image if a bounding box is given
-        decodedQR = self._decode_qr_zbar(image=image, detection_result=detection_result)
+        decodedQR = self._decode_qr_custom(image=image, detection_result=detection_result)
         if len(decodedQR) > 0:
             # Take first result only
             decodeQRResult = decodedQR[0]
-            decoded_str = decodeQRResult.result.data.decode("utf-8")
+            decoded_str = decodeQRResult
             for encoding in self.reencode_to:
                 try:
                     decoded_str = decoded_str.encode(encoding).decode("utf-8")
@@ -483,4 +484,125 @@ class QReader:
             decodedQR = decodeQR(image=blur_image, symbols=[ZBarSymbol.QRCODE])
             if len(decodedQR) > 0:
                 return decodedQR
+        return []
+    
+
+    #!# 穴抜きQR対応デコーダ
+    def _decode_qr_custom(
+        self,
+        image: np.ndarray,
+        detection_result: dict[
+            str, np.ndarray | float | tuple[float | int, float | int]
+        ],
+    ) -> list[DecodeQRResult]:
+        """
+        Try to decode the QR code just with pyzbar, pre-processing the image if it fails in different ways that
+        sometimes work.
+        :param image: np.ndarray. The image to be read. It must be a np.ndarray (HxWxC) (uint8).
+        :param detection_result: dict[str, np.ndarray|float|tuple[float|int, float|int]]. One of the detection dicts
+            returned by the detect method. Note that QReader.detect() returns a tuple of these dicts. This method
+            expects just one of them.
+        :return: tuple. The decoded QR code in the zbar format.
+        """
+        # Crop the QR for bbox and quad
+        cropped_bbox, _ = crop_qr(
+            image=image, detection=detection_result, crop_key=BBOX_XYXY
+        )
+        cropped_quad, updated_detection = crop_qr(
+            image=image, detection=detection_result, crop_key=PADDED_QUAD_XY
+        )
+        corrected_perspective = self.__correct_perspective(
+            image=cropped_quad, padded_quad_xy=updated_detection[PADDED_QUAD_XY]
+        )
+
+        corrections = {
+            "cropped_bbox": cropped_bbox,
+            "corrected_perspective": corrected_perspective,
+        }
+
+        donut_decoder = Decoder()
+
+        for scale_factor in (1, 0.5, 2, 0.25, 3, 4):
+            for label, image in corrections.items():
+                # If rescaled_image will be larger than 1024px, skip it
+                # TODO: Decide a minimum size for the QRs based on the resize benchmark
+                if (
+                    not all(25 < axis < 1024 for axis in image.shape[:2])
+                    and scale_factor != 1
+                ):
+                    continue
+
+                rescaled_image = cv2.resize(
+                    src=image,
+                    dsize=None,
+                    fx=scale_factor,
+                    fy=scale_factor,
+                    interpolation=cv2.INTER_CUBIC,
+                )
+                #decodedQR = decodeQR(image=rescaled_image, symbols=[ZBarSymbol.QRCODE])
+                decodedQR = [donut_decoder.decode_image(rescaled_image)]
+                if len(decodedQR) > 0:
+                    return wrap(
+                        scale_factor=scale_factor,
+                        corrections=typing.cast(CorrectionsType, label),
+                        flavor="original",
+                        blur_kernel_sizes=None,
+                        image=rescaled_image,
+                        results=decodedQR,
+                    )
+                # For QRs with black background and white foreground, try to invert the image
+                inverted_image = np.array(255) - rescaled_image
+                decodedQR = [donut_decoder.decode_image(inverted_image)]
+                if len(decodedQR) > 0:
+                    return wrap(
+                        scale_factor=scale_factor,
+                        corrections=typing.cast(CorrectionsType, label),
+                        flavor="inverted",
+                        blur_kernel_sizes=None,
+                        image=inverted_image,
+                        results=decodedQR,
+                    )
+
+                # If it not works, try to parse to grayscale (if it is not already)
+                if len(rescaled_image.shape) == 3:
+                    assert (
+                        rescaled_image.shape[2] == 3
+                    ), f"Image must be RGB or BGR, but it has {image.shape[2]} channels."
+                    gray = cv2.cvtColor(rescaled_image, cv2.COLOR_RGB2GRAY)
+                else:
+                    gray = rescaled_image
+                decodedQR = [donut_decoder.decode_image(gray)]
+                if len(decodedQR) > 0:
+                    return wrap(
+                        scale_factor=scale_factor,
+                        corrections=typing.cast(CorrectionsType, label),
+                        flavor="grayscale",
+                        blur_kernel_sizes=((5, 5), (7, 7)),
+                        image=gray,
+                        results=decodedQR,
+                    )
+
+                if len(rescaled_image.shape) == 3:
+                    # If it not works, try to sharpen the image
+                    sharpened_gray = cv2.cvtColor(
+                        cv2.filter2D(
+                            src=rescaled_image, ddepth=-1, kernel=_SHARPEN_KERNEL
+                        ),
+                        cv2.COLOR_RGB2GRAY,
+                    )
+                else:
+                    sharpened_gray = cv2.filter2D(
+                        src=rescaled_image, ddepth=-1, kernel=_SHARPEN_KERNEL
+                    )
+                decodedQR = [donut_decoder.decode_image(sharpened_gray)]
+                if len(decodedQR) > 0:
+                    return wrap(
+                        scale_factor=scale_factor,
+                        corrections=typing.cast(CorrectionsType, label),
+                        flavor="grayscale",
+                        blur_kernel_sizes=((3, 3),),
+                        image=sharpened_gray,
+                        results=decodedQR,
+                    )
+
         return []
