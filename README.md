@@ -1,16 +1,16 @@
-# QReader
+# QReader_donut
 
-<img alt="QReader" title="QReader" src="https://raw.githubusercontent.com/Eric-Canas/QReader/main/documentation/resources/logo.png" width="20%" align="left"> **QReader** is a **Robust** and **Straight-Forward** solution for reading **difficult** and **tricky** **QR** codes within images in **Python**. Powered by a <a href="https://github.com/Eric-Canas/qrdet" target="_blank">YOLOv8</a> model.
-
-Behind the scenes, the library is composed by two main building blocks: A <a href="https://github.com/ultralytics/ultralytics" target="_blank">YOLOv8</a> **QR Detector** model trained to **detect** and **segment** QR codes (also offered as <a href="https://github.com/Eric-Canas/qrdet" target="_blank">stand-alone</a>), and the <a href="https://github.com/NaturalHistoryMuseum/pyzbar" target="_blank">Pyzbar</a> **QR Decoder**. Using the information extracted from this **QR Detector**, **QReader** transparently applies, on top of <a href="https://github.com/NaturalHistoryMuseum/pyzbar" target="_blank">Pyzbar</a>, different image preprocessing techniques that maximize the **decoding** rate on difficult images.
+This repository is forked from QReader to using with [DonutCode](https://github.com/HIROAKI-KAJI).<br>
+Thanks for QReader, Eric-Canas, and other contributors.<br>
+[**Original QReader**](https://github.com/Eric-Canas/QReader)
 
 
 ## Installation
 
-To install **QReader**, simply run:
+To install, use this command at project folder.
 
 ```bash
-pip install qreader
+pip install -e .
 ```
 
 You may need to install some additional **pyzbar** dependencies:

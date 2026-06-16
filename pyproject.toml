@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qreader_donut"
+version = "3.16.1"
+description = "QReader for DonutCode"
+license="MIT"
+authors = [{ name = "Kaguas" }]
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "pyzbar",
+    "qrdet>=2.5",
+    "donutcode"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

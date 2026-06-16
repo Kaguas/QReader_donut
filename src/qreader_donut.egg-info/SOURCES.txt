@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+src/qreader_donut/__init__.py
+src/qreader_donut/main.py
+src/qreader_donut.egg-info/PKG-INFO
+src/qreader_donut.egg-info/SOURCES.txt
+src/qreader_donut.egg-info/dependency_links.txt
+src/qreader_donut.egg-info/requires.txt
+src/qreader_donut.egg-info/top_level.txt

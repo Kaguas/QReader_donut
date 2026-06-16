@@ -1,5 +1,5 @@
-opencv-python
 numpy
+opencv-python
 pyzbar
 qrdet>=2.5
 donutcode

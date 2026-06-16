@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: qreader_donut
+Version: 3.16.1
+Summary: QReader for DonutCode
+Author: Kaguas
+License-Expression: MIT
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: opencv-python
+Requires-Dist: pyzbar
+Requires-Dist: qrdet>=2.5
+Requires-Dist: donutcode
+Dynamic: license-file
